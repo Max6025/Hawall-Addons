@@ -40,7 +40,7 @@ Alle Aufrufe außer `/gesundheit` brauchen den Schlüssel, entweder als Kopfzeil
 | `GET /selbsttest` | Anmeldung und Lesezugriffe gegen die echte Instanz prüfen |
 | `GET /wartung` | Was in der Ablage steht und was in Uptime Kuma tatsächlich offen ist |
 | `POST /wartung/<schlüssel>` | Wartung anlegen (ersetzt eine vorhandene mit demselben Schlüssel) |
-| `DELETE /wartung/<schlüssel>` | Wartung beenden |
+| `DELETE /wartung/<schlüssel>` | Wartung **beenden**: Die Endzeit wird auf jetzt gesetzt, der Eintrag bleibt stehen. Mit `?loeschen=1` wird sie stattdessen wirklich entfernt. |
 | `POST /aufraeumen` | Aufräumen von Hand nachholen |
 
 ### Anlegen
@@ -65,20 +65,33 @@ Bei den wiederkehrenden kommt `zeitfenster` dazu, z. B.
 `monitore` und `statusseite` lassen sich pro Aufruf überschreiben; ohne Angabe gelten die
 Add-on-Optionen.
 
+## Beenden heißt nicht löschen
+
+Beim Beenden wird die **Endzeit auf jetzt gezogen**, und die Wartung bleibt stehen. Aus dem
+geplanten Fenster `14:12 - 14:32` wird `14:12 - 14:18`.
+
+Der Unterschied ist die ganze Absicht: Gelöscht wäre hinterher auch die Auskunft weg, dass an
+diesem Abend überhaupt etwas war und wie lange es gedauert hat. Wer später auf eine Lücke im
+Verlauf schaut, findet dann nichts, was sie erklärt.
+
+Wirklich gelöscht wird nur beim Aufräumen und mit `?loeschen=1` — eine verwaiste Wartung, die
+niemand mehr zuordnen kann, soll weg und nicht in die Geschichte eingehen.
+
 ## Wie Wartungen wiedergefunden werden
 
-Auf **zwei** Wegen, und der zweite ist der wichtigere:
+Über **einen** Weg, und der Preis dafür steht darunter:
 
-1. `/data/wartungen.json` — Zuordnung Schlüssel → Wartungs-ID.
-2. Ein Merker in der **Beschreibung** der Wartung: der Satz
-   „Automatisch eingetragen und automatisch entfernt (`<schlüssel>`).
+Über `/data/wartungen.json` — die Zuordnung Schlüssel → Wartungs-ID.
 
-Eine Wartung in Uptime Kuma hat **kein** weiteres Textfeld, in dem so ein Merker sich
-verstecken könnte — er ist auf der Statusseite mitzulesen. Deshalb ist er ein Satz und keine
-Klammer-Notation: Wer dort liest, erfährt damit, dass nichts vergessen wurde.
+Bis 0.1.3 stand zusätzlich ein Merker in der **Beschreibung** der Wartung. Der ist weg: Eine
+Wartung in Uptime Kuma hat kein weiteres Textfeld, in dem er sich verstecken könnte — er stand
+damit auf der Statusseite, und dort ist er Maschinenkram auf einer Seite, die Menschen lesen.
+**Gelesen** wird er weiter, sonst wären Wartungen aus früheren Fassungen nicht mehr zuzuordnen.
 
-Geht die Datei verloren (Add-on neu aufgesetzt, Datenträger getauscht), ließen sich die
-Wartungen ohne den Merker nicht mehr zuordnen und würden für immer in Uptime Kuma stehen.
+**Was das kostet, ausdrücklich:** Geht `/data/wartungen.json` verloren, während eine Wartung
+offen ist, kann sie niemand mehr zuordnen. Sie läuft dann durch ihr **Zeitfenster** ab und
+verschwindet von der Statusseite — verspätet statt nie. Genau dafür ist das Fenster da; für
+immer offen stünde sie nur mit der Strategie `manual`.
 
 **Beim Start wird beidseitig aufgeräumt:** Einträge in der Ablage, deren Wartung es in Uptime
 Kuma nicht mehr gibt, fallen weg; Wartungen mit unserem Merker, die in der Ablage fehlen,
@@ -108,6 +121,17 @@ Signatur brechen, und eine harte Versionssperre hat die Bibliothek nicht. Es *so
 gehen — „sollte" ist aber keine Grundlage, und deshalb gibt es `GET /selbsttest`.
 
 **Wer die Fassung der Bibliothek hochzieht, lässt danach den Selbsttest laufen.**
+
+## Tests
+
+```bash
+python3 test/test_wartungsmelder.py
+```
+
+15 Tests, ohne Uptime Kuma und **ohne installierte Pakete**: Unter `test/attrappen/` liegen
+untergeschobene Fassungen von `flask` und `uptime_kuma_api`. Die Attrappe von Kuma verhält sich
+bei `edit_maintenance` wie die echte Bibliothek 1.2.1 — Wartung lesen, übergebene Felder
+hineinmischen, zurückschreiben. Nachgelesen im Quelltext von 1.2.1, nicht geraten.
 
 ## Der Port
 

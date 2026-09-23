@@ -171,25 +171,27 @@ def mit_kuma(arbeit):
 
 # --- Wartungen --------------------------------------------------------------------------------
 
-# Der Merker muss in der BESCHREIBUNG stehen -- eine Wartung in Uptime Kuma hat kein weiteres
-# Textfeld, in dem er sich verstecken könnte. Er ist damit auf der Statusseite sichtbar, und
-# deshalb ist er ein Satz und keine Klammer-Notation: Wer dort liest, erfährt so wenigstens,
-# dass hier nichts vergessen wurde, sondern von selbst wieder verschwindet.
-MERKER_SATZ = "Automatisch eingetragen und automatisch entfernt ({})."
+# KEIN Merker mehr in der Beschreibung.
+#
+# Eine Wartung in Uptime Kuma hat kein weiteres Textfeld, in dem so ein Merker sich verstecken
+# könnte -- er stand damit auf der Statusseite, und dort ist er Maschinenkram auf einer Seite,
+# die Menschen lesen. Die Zuordnung läuft jetzt allein über /data/wartungen.json.
+#
+# WAS DAS KOSTET, ausdrücklich: Geht diese Datei verloren, während eine Wartung offen ist, kann
+# sie niemand mehr zuordnen. Sie läuft dann durch ihr Zeitfenster ab (Strategie `single`, kein
+# `manual`) und verschwindet von der Statusseite -- verspätet statt nie. Genau dafür ist das
+# Fenster da. Eine Wartung, die für immer offen stünde, gäbe es nur mit `manual`.
+#
+# GELESEN wird der alte Merker weiter: Wartungen aus 0.1.0 bis 0.1.3 tragen ihn, und ohne das
+# wären sie nicht mehr zuzuordnen.
 MERKER_MUSTER = [
     r"Automatisch eingetragen und automatisch entfernt \(([^)]+)\)",
-    # Bis 0.1.2: eckige Klammern. Wird weiter GELESEN, sonst sind Wartungen aus der Zeit davor
-    # nicht mehr zuzuordnen und bleiben für immer in Uptime Kuma stehen.
     rf"\[{MERKER}:([^\]]+)\]",
 ]
 
 
-def beschreibung_mit_merker(text, schluessel):
-    """Der Merker macht die Wartung ohne die Ablage-Datei wiederfindbar."""
-    return f"{text}\n\n{MERKER_SATZ.format(schluessel)}"
-
-
 def merker_lesen(beschreibung):
+    """Nur noch für Wartungen aus früheren Fassungen. Neue tragen keinen Merker."""
     for muster in MERKER_MUSTER:
         m = re.search(muster, beschreibung or "")
         if m:
@@ -198,11 +200,23 @@ def merker_lesen(beschreibung):
 
 
 def unsere_wartungen(api):
-    """Alle Wartungen, die von diesem Add-on stammen -- am Merker erkannt."""
+    """Alle Wartungen, die von diesem Add-on stammen.
+
+    Zwei Quellen, und die Ablage ist inzwischen die maßgebliche: Neue Wartungen tragen keinen
+    Merker mehr in der Beschreibung (der stand auf der Statusseite). Der Merker wird nur noch
+    gelesen, damit Wartungen aus 0.1.0 bis 0.1.3 weiter zuzuordnen sind.
+    """
     treffer = {}
-    for w in api.get_maintenances():
+    alle = {w.get("id"): w for w in api.get_maintenances()}
+
+    for schluessel, eintrag in (ablage_lesen() or {}).items():
+        wid = (eintrag or {}).get("id") if isinstance(eintrag, dict) else eintrag
+        if wid in alle:
+            treffer.setdefault(schluessel, []).append(alle[wid])
+
+    for w in alle.values():
         s = merker_lesen(w.get("description"))
-        if s:
+        if s and w not in treffer.get(s, []):
             treffer.setdefault(s, []).append(w)
     return treffer
 
@@ -324,7 +338,7 @@ def wartung_anlegen(schluessel, daten):
         try:
             antwort = api.add_maintenance(
                 title=titel,
-                description=beschreibung_mit_merker(beschreibung, schluessel),
+                description=beschreibung,
                 strategy=strat,
                 **felder,
             )
@@ -362,31 +376,84 @@ def wartung_anlegen(schluessel, daten):
     return mit_kuma(arbeit)
 
 
-def wartung_beenden(schluessel):
+def wartung_beenden(schluessel, loeschen=False):
+    """Die Wartung BEENDEN, nicht wegwerfen: Die Endzeit wird auf jetzt gesetzt.
+
+    Der Unterschied ist die ganze Absicht dahinter. Gelöscht war die Wartung hinterher
+    verschwunden -- und damit auch die Auskunft, dass an diesem Abend überhaupt etwas war und
+    wie lange es gedauert hat. Wer später auf eine Lücke im Verlauf schaut, findet dann nichts,
+    was sie erklärt. Mit nachgezogener Endzeit steht dort "14:12 - 14:18" statt des geplanten
+    Fensters bis 14:22, und das ist die Wahrheit über diesen Abend.
+
+    `loeschen=True` gibt es weiter, aber nur fürs Aufräumen: Eine verwaiste Wartung, die
+    niemand mehr zuordnen kann, soll weg und nicht in die Geschichte eingehen.
+    """
     def arbeit(api):
         gefunden = unsere_wartungen(api).get(schluessel, [])
-        geloescht = []
+        behandelt = []
         for w in gefunden:
+            wid = w.get("id")
+            if loeschen:
+                try:
+                    api.delete_maintenance(wid)
+                    behandelt.append({"id": wid, "was": "gelöscht"})
+                except Exception as e:
+                    raise KumaFehler(502, f"Wartung {wid} ließ sich nicht löschen: {e}")
+                continue
             try:
-                api.delete_maintenance(w["id"])
-                geloescht.append(w["id"])
+                bis = endzeit_setzen(api, w)
+                behandelt.append({"id": wid, "was": "beendet", "bis": bis})
+            except KumaFehler:
+                raise
             except Exception as e:
-                raise KumaFehler(502, f"Wartung {w.get('id')} ließ sich nicht löschen: {e}")
+                raise KumaFehler(502, f"Endzeit der Wartung {wid} ließ sich nicht setzen: {e}")
 
         ablage = ablage_lesen()
-        # Auch dann aus der Ablage nehmen, wenn in Uptime Kuma nichts zu löschen war --
-        # sonst bleibt ein Eintrag stehen, der auf eine ID zeigt, die es nicht mehr gibt.
+        # Auch dann aus der Ablage nehmen, wenn in Uptime Kuma nichts zu tun war -- sonst bleibt
+        # ein Eintrag stehen, der auf eine ID zeigt, die es nicht mehr gibt.
         ablage.pop(schluessel, None)
         ablage_schreiben(ablage)
 
-        if not geloescht:
+        if not behandelt:
             log.info("Wartung beenden: für %s war keine offen.", schluessel)
         else:
-            log.info("Wartung beendet: %s (IDs %s)", schluessel,
-                     ", ".join(str(i) for i in geloescht))
-        return {"ok": True, "schluessel": schluessel, "geloescht": geloescht}
+            log.info("Wartung beendet: %s (%s)", schluessel,
+                     ", ".join(f"{b['id']} {b['was']}" for b in behandelt))
+        return {"ok": True, "schluessel": schluessel, "wartungen": behandelt}
 
     return mit_kuma(arbeit)
+
+
+def endzeit_setzen(api, wartung):
+    """Die Endzeit einer laufenden Wartung auf jetzt ziehen.
+
+    `edit_maintenance` liest die Wartung selbst noch einmal, mischt die übergebenen Felder
+    hinein und schickt alles zurück -- nachgelesen in uptime-kuma-api 1.2.1, nicht geraten.
+    Deshalb genügt hier das eine Feld `dateRange`.
+
+    Der Anfang bleibt, wie er war. Eine Wartung, deren Anfang nachträglich wandert, wäre eine
+    Fälschung des Verlaufs; und die Reihenfolge muss stimmen, sonst lehnt Uptime Kuma ab.
+    """
+    wid = wartung.get("id")
+    bereich = list(wartung.get("dateRange") or [])
+    anfang = bereich[0] if bereich else None
+    if not anfang:
+        raise KumaFehler(502, f"Wartung {wid} hat keinen Anfangszeitpunkt -- Endzeit nicht setzbar.")
+
+    ende = jetzt()
+    try:
+        anfang_zeit = datetime.strptime(anfang, "%Y-%m-%d %H:%M:%S").replace(tzinfo=ende.tzinfo)
+        # Mindestens eine Minute. Eine Wartung von null Sekunden sieht auf der Statusseite aus
+        # wie ein Fehler, und bei einer verstellten Uhr könnte das Ende sonst VOR dem Anfang
+        # liegen -- das lehnt Uptime Kuma ab.
+        if ende < anfang_zeit + timedelta(minutes=1):
+            ende = anfang_zeit + timedelta(minutes=1)
+    except ValueError:
+        pass
+
+    bis = ende.strftime("%Y-%m-%d %H:%M:%S")
+    api.edit_maintenance(wid, dateRange=[anfang, bis])
+    return bis
 
 
 def aufraeumen():
@@ -590,11 +657,18 @@ def anlegen(schluessel):
 
 @app.delete("/wartung/<schluessel>")
 def beenden(schluessel):
+    """Beendet die Wartung: Die Endzeit wird auf jetzt gesetzt, der Eintrag BLEIBT.
+
+    Mit `?loeschen=1` wird sie stattdessen wirklich entfernt. Das ist der Weg fürs Aufräumen
+    und für einen Fehlgriff -- nicht der Normalfall, denn dann verschwindet auch die Auskunft,
+    dass überhaupt etwas war.
+    """
     fehler = schluessel_pruefen()
     if fehler:
         return fehler
+    loeschen = str(request.args.get("loeschen", "")).lower() in ("1", "true", "ja")
     with schloss:
-        return jsonify(wartung_beenden(schluessel))
+        return jsonify(wartung_beenden(schluessel, loeschen=loeschen))
 
 
 @app.post("/aufraeumen")
