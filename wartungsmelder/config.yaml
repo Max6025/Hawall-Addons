@@ -11,7 +11,7 @@
 # Host wie Uptime Kuma und verlassen ihn nie. Im Wandpanel lägen sie im Klartext auf einem
 # Gerät ohne Anmeldekennwort.
 name: Wartungsmelder
-version: "0.1.0"
+version: "0.1.1"
 slug: wartungsmelder
 description: >-
   Legt Wartungen in Uptime Kuma an, wenn an einem Gerät gearbeitet wird, und entfernt sie
@@ -23,10 +23,15 @@ arch:
   - armv7
 init: false
 # Das Wandpanel ruft von außen auf, also braucht es einen erreichbaren Port.
+#
+# 8129 und nicht 8099: Auf einem gewachsenen Home Assistant ist 8099 haeufig schon vergeben,
+# und dann startet das Add-on gar nicht ("port is already in use") -- ein Fehlschlag beim
+# ersten Start, der nichts mit diesem Add-on zu tun hat. Der Port ist in der Konfiguration
+# ohnehin frei einstellbar; hier steht nur, was am wenigsten anstoesst.
 ports:
-  8099/tcp: 8099
+  8129/tcp: 8129
 ports_description:
-  8099/tcp: HTTP-Schnittstelle für die Auslöser
+  8129/tcp: HTTP-Schnittstelle für die Auslöser
 # /data ist bei Add-ons der beständige Ort. Dort liegen die Wartungs-IDs, damit ein Neustart
 # des Add-ons keine Wartung in Uptime Kuma zurücklässt, die niemand mehr zuordnen kann.
 map: []

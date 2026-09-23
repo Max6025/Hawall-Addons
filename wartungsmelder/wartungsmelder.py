@@ -64,7 +64,7 @@ ZEITZONE = os.environ.get("ZEITZONE", "Europe/Berlin")
 # Die Liste kommt zeilenweise aus bashio, getrennt mit dem Datensatztrenner 0x1e.
 MONITOR_NAMEN = [t.strip() for t in os.environ.get("MONITOR_NAMEN", "").split("\x1e") if t.strip()]
 
-PORT = int(os.environ.get("PORT", "8099"))
+PORT = int(os.environ.get("PORT", "8129"))
 ABLAGE = os.environ.get("ABLAGE", "/data/wartungen.json")
 # Bleibt None, solange die Ablage schreibbar ist; sonst der Grund, im Klartext.
 ABLAGE_FEHLER = None

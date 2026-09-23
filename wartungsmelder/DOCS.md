@@ -104,13 +104,20 @@ gehen — „sollte" ist aber keine Grundlage, und deshalb gibt es `GET /selbstt
 
 **Wer die Fassung der Bibliothek hochzieht, lässt danach den Selbsttest laufen.**
 
+## Der Port
+
+Ab Werk **8129**. Steht der schon jemand anderem zu, meldet Home Assistant beim Start
+`port is already in use` — dann in der **Konfiguration** des Add-ons unter *Netzwerk* einen
+freien Port eintragen. Was dort links steht, ist der Port im Container (bleibt 8129); rechts
+steht der Port auf dem Host, und **der** gehört ins Wandpanel.
+
 ## Dieses Add-on selbst überwachen
 
 In Uptime Kuma ein Monitor vom Typ **HTTP(s) - Keyword**:
 
 | Feld | Wert |
 |---|---|
-| URL | `http://<ha-host>:8099/gesundheit` |
+| URL | `http://<ha-host>:8129/gesundheit` |
 | Keyword | `HAWALL-OK` |
 
 Nach Text und nicht nach Struktur, weil Uptime Kuma genau das anbietet — dasselbe Schlüsselwort
