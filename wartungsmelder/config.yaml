@@ -24,10 +24,10 @@ arch:
 init: false
 # Das Wandpanel ruft von außen auf, also braucht es einen erreichbaren Port.
 #
-# 8129 und nicht 8099: Auf einem gewachsenen Home Assistant ist 8099 haeufig schon vergeben,
+# 8129 und nicht 8099: Auf einem gewachsenen Home Assistant ist 8099 häufig schon vergeben,
 # und dann startet das Add-on gar nicht ("port is already in use") -- ein Fehlschlag beim
 # ersten Start, der nichts mit diesem Add-on zu tun hat. Der Port ist in der Konfiguration
-# ohnehin frei einstellbar; hier steht nur, was am wenigsten anstoesst.
+# ohnehin frei einstellbar; hier steht nur, was am wenigsten anstößt.
 ports:
   8129/tcp: 8129
 ports_description:
