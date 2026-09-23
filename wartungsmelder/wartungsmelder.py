@@ -612,4 +612,21 @@ if __name__ == "__main__":
     if BIBLIOTHEK_FEHLER:
         log.error("uptime-kuma-api nicht geladen: %s", BIBLIOTHEK_FEHLER)
     threading.Thread(target=beim_start, daemon=True).start()
-    app.run(host="0.0.0.0", port=PORT)
+
+    # Waitress und nicht app.run(): Der Entwicklungsserver von Flask schreibt bei jedem Start
+    # "Do not use it in a production deployment" ins Add-on-Protokoll. Diese Warnung stimmt --
+    # und sie steht damit genau dort, wo man nach echten Fehlern sucht. Eine Warnung, die immer
+    # da ist und nie etwas bedeutet, bringt einem bei, das Protokoll zu überfliegen.
+    #
+    # Waitress ist reines Python (kein Compiler im Alpine-Bild nötig), hat keine weiteren
+    # Abhängigkeiten und ist genau dafür gedacht. Zwei Arbeitsfäden genügen: Die Auslöser kommen
+    # ein paar Mal pro Woche, und jeder Kuma-Zugriff läuft ohnehin durch ein Schloss.
+    try:
+        from waitress import serve
+        log.info("Dienst hört auf Port %s", PORT)
+        serve(app, host="0.0.0.0", port=PORT, threads=2, ident="wartungsmelder")
+    except ImportError:
+        # Fällt zurück, statt nicht zu starten. Ein Add-on, das wegen des Webservers gar nicht
+        # läuft, ist schlechter als eines mit einer Warnung im Protokoll.
+        log.warning("waitress nicht vorhanden, es läuft der Entwicklungsserver von Flask.")
+        app.run(host="0.0.0.0", port=PORT)

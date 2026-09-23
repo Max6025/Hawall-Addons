@@ -10,3 +10,7 @@
 # diese Datei. Wer die Fassung hochzieht, lässt den Selbsttest danach laufen.
 uptime-kuma-api==1.2.1
 flask==3.0.3
+# Der Webserver. Flasks eigener ist ein Entwicklungsserver und sagt das bei jedem Start im
+# Protokoll -- an genau der Stelle, an der man nach echten Fehlern sucht. Waitress ist reines
+# Python, braucht keinen Compiler im Alpine-Bild und bringt keine weiteren Abhängigkeiten mit.
+waitress==3.0.0
