@@ -11,7 +11,7 @@
 # Host wie Uptime Kuma und verlassen ihn nie. Im Wandpanel lägen sie im Klartext auf einem
 # Gerät ohne Anmeldekennwort.
 name: Wartungsmelder
-version: "0.1.2"
+version: "0.1.3"
 slug: wartungsmelder
 description: >-
   Legt Wartungen in Uptime Kuma an, wenn an einem Gerät gearbeitet wird, und entfernt sie

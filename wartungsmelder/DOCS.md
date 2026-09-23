@@ -70,7 +70,12 @@ Add-on-Optionen.
 Auf **zwei** Wegen, und der zweite ist der wichtigere:
 
 1. `/data/wartungen.json` — Zuordnung Schlüssel → Wartungs-ID.
-2. Ein Merker in der **Beschreibung** der Wartung: `[wartungsmelder:<schlüssel>]`.
+2. Ein Merker in der **Beschreibung** der Wartung: der Satz
+   „Automatisch eingetragen und automatisch entfernt (`<schlüssel>`).
+
+Eine Wartung in Uptime Kuma hat **kein** weiteres Textfeld, in dem so ein Merker sich
+verstecken könnte — er ist auf der Statusseite mitzulesen. Deshalb ist er ein Satz und keine
+Klammer-Notation: Wer dort liest, erfährt damit, dass nichts vergessen wurde.
 
 Geht die Datei verloren (Add-on neu aufgesetzt, Datenträger getauscht), ließen sich die
 Wartungen ohne den Merker nicht mehr zuordnen und würden für immer in Uptime Kuma stehen.

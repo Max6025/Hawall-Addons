@@ -171,14 +171,30 @@ def mit_kuma(arbeit):
 
 # --- Wartungen --------------------------------------------------------------------------------
 
+# Der Merker muss in der BESCHREIBUNG stehen -- eine Wartung in Uptime Kuma hat kein weiteres
+# Textfeld, in dem er sich verstecken könnte. Er ist damit auf der Statusseite sichtbar, und
+# deshalb ist er ein Satz und keine Klammer-Notation: Wer dort liest, erfährt so wenigstens,
+# dass hier nichts vergessen wurde, sondern von selbst wieder verschwindet.
+MERKER_SATZ = "Automatisch eingetragen und automatisch entfernt ({})."
+MERKER_MUSTER = [
+    r"Automatisch eingetragen und automatisch entfernt \(([^)]+)\)",
+    # Bis 0.1.2: eckige Klammern. Wird weiter GELESEN, sonst sind Wartungen aus der Zeit davor
+    # nicht mehr zuzuordnen und bleiben für immer in Uptime Kuma stehen.
+    rf"\[{MERKER}:([^\]]+)\]",
+]
+
+
 def beschreibung_mit_merker(text, schluessel):
     """Der Merker macht die Wartung ohne die Ablage-Datei wiederfindbar."""
-    return f"{text}\n\n[{MERKER}:{schluessel}]"
+    return f"{text}\n\n{MERKER_SATZ.format(schluessel)}"
 
 
 def merker_lesen(beschreibung):
-    m = re.search(rf"\[{MERKER}:([^\]]+)\]", beschreibung or "")
-    return m.group(1) if m else None
+    for muster in MERKER_MUSTER:
+        m = re.search(muster, beschreibung or "")
+        if m:
+            return m.group(1)
+    return None
 
 
 def unsere_wartungen(api):
