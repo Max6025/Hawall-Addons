@@ -1,0 +1,57 @@
+# Wartungsmelder: legt Wartungen in Uptime Kuma an und räumt sie wieder weg.
+#
+# Warum ein Add-on und kein Teil des Wandpanels: Uptime Kuma hat für Wartungen keine
+# REST-API, das läuft über Socket.io, und die brauchbare Bibliothek dafuer ist Python
+# (uptime-kuma-api). Das Wandpanel ist Electron auf Windows -- Python dort mitzuliefern wäre
+# ein Vielfaches an Installergröße für eine Nebenaufgabe.
+#
+# Der zweite, wichtigere Grund: Wartungen brauchen Benutzername und Passwort von Uptime Kuma
+# (der API-Key gilt nur für /metrics). Uptime Kuma kennt keine Rollen, diese Zugangsdaten sind
+# also Vollzugriff auf die Überwachung. Hier liegen sie in den Add-on-Optionen auf demselben
+# Host wie Uptime Kuma und verlassen ihn nie. Im Wandpanel lägen sie im Klartext auf einem
+# Gerät ohne Anmeldekennwort.
+name: Wartungsmelder
+version: "0.1.0"
+slug: wartungsmelder
+description: >-
+  Legt Wartungen in Uptime Kuma an, wenn an einem Gerät gearbeitet wird, und entfernt sie
+  wieder, sobald es vorbei ist. Wird vom Wandpanel ausgelöst.
+url: https://github.com/Max6025/Hawall-Addons
+arch:
+  - aarch64
+  - amd64
+  - armv7
+init: false
+# Das Wandpanel ruft von außen auf, also braucht es einen erreichbaren Port.
+ports:
+  8099/tcp: 8099
+ports_description:
+  8099/tcp: HTTP-Schnittstelle für die Auslöser
+# /data ist bei Add-ons der beständige Ort. Dort liegen die Wartungs-IDs, damit ein Neustart
+# des Add-ons keine Wartung in Uptime Kuma zurücklässt, die niemand mehr zuordnen kann.
+map: []
+options:
+  kuma_url: "http://localhost:3001"
+  kuma_benutzer: ""
+  kuma_passwort: ""
+  zugriffsschluessel: ""
+  monitor_namen: []
+  statusseite: ""
+  zeitzone: "Europe/Berlin"
+  protokollstufe: "info"
+schema:
+  kuma_url: url
+  kuma_benutzer: str
+  kuma_passwort: password
+  # Ohne Schlüssel darf niemand im Netz Wartungen anlegen oder löschen. Leer heißt: offen,
+  # und das Add-on sagt es beim Start deutlich.
+  zugriffsschluessel: password?
+  # Welche Monitore die Wartung betrifft. Namen, nicht IDs -- IDs ändern sich beim
+  # Neuanlegen eines Monitors, Namen nicht.
+  monitor_namen:
+    - str
+  # Titel der Statusseite, auf der die Wartung erscheinen soll. Ohne Zuordnung taucht sie
+  # dort nicht auf, auch wenn sie aktiv ist.
+  statusseite: str?
+  zeitzone: str
+  protokollstufe: list(trace|debug|info|notice|warning|error|fatal)

@@ -1,0 +1,12 @@
+# FESTGENAGELT, wie in der Vorgabe verlangt.
+#
+# uptime-kuma-api 1.2.1 verspricht offiziell nur Uptime Kuma 1.17.0 - 1.23.2. Die Instanz hier
+# ist 2.5.5. Nachgeprüft am Quelltext von Kuma 2.5.5: Die Wartungs-Ereignisse heißen dort
+# unverändert (addMaintenance, addMonitorMaintenance, addMaintenanceStatusPage, ...), und
+# add_maintenance(**kwargs) gibt die Felder durch, kann also nicht an einer Signatur brechen.
+# Eine harte Versionssperre hat die Bibliothek nicht.
+#
+# Ob es wirklich trägt, sagt der Selbsttest (/selbsttest) gegen die echte Instanz -- nicht
+# diese Datei. Wer die Fassung hochzieht, lässt den Selbsttest danach laufen.
+uptime-kuma-api==1.2.1
+flask==3.0.3
