@@ -26,5 +26,18 @@ if bashio::config.is_empty 'zugriffsschluessel'; then
   bashio::log.warning "anlegen und löschen. Für den Betrieb bitte einen setzen."
 fi
 
+# localhost zeigt INNERHALB dieses Containers auf den Container selbst, nicht auf den Host.
+# Ein Add-on, das "http://localhost:3001" befragt, fragt also sich selbst -- und bekommt
+# "nicht erreichbar", obwohl Uptime Kuma laeuft. Das ist der erste Fehler, den man macht, und
+# er sieht von aussen aus wie ein falsches Passwort.
+case "${KUMA_URL}" in
+  *localhost*|*127.0.0.1*)
+    bashio::log.warning "kuma_url zeigt auf localhost. Innerhalb dieses Add-on-Containers ist"
+    bashio::log.warning "das der Container SELBST, nicht der Host -- Uptime Kuma ist so nicht"
+    bashio::log.warning "erreichbar. Bitte die IP des Home-Assistant-Hosts eintragen, z. B."
+    bashio::log.warning "http://192.168.x.x:3001 (oder den Hostnamen des Kuma-Add-ons)."
+    ;;
+esac
+
 bashio::log.info "Wartungsmelder startet, Uptime Kuma: ${KUMA_URL}"
 exec python3 /app/wartungsmelder.py

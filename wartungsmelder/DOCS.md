@@ -18,7 +18,7 @@ nie. Im Wandpanel lägen sie im Klartext auf einem Gerät ohne Anmeldekennwort.
 
 | Option | Bedeutung |
 |---|---|
-| `kuma_url` | Adresse von Uptime Kuma. Läuft es als Add-on auf demselben Host, passt `http://localhost:3001` meist nicht — dann `http://<host-ip>:3001` nehmen. |
+| `kuma_url` | Adresse von Uptime Kuma. **Nicht `localhost`**: Das ist innerhalb dieses Add-on-Containers der Container selbst, nicht der Host — Uptime Kuma ist so nicht erreichbar, und der Fehler sieht aus wie ein falsches Passwort. Also `http://<ip-des-ha-hosts>:3001`. Das Add-on warnt beim Start, wenn hier `localhost` steht. |
 | `kuma_benutzer` / `kuma_passwort` | Anmeldung bei Uptime Kuma |
 | `zugriffsschluessel` | Schutz dieser Schnittstelle. **Leer heißt offen** — jeder im Netz könnte dann Wartungen anlegen und löschen. Das Add-on warnt beim Start. |
 | `monitor_namen` | Welche Monitore die Wartung betrifft. **Namen, nicht IDs**: IDs ändern sich, wenn ein Monitor neu angelegt wird. |
