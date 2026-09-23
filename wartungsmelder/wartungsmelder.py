@@ -502,6 +502,43 @@ def selbsttest():
             except Exception as e:
                 bericht[name] = f"FEHLER: {e}"
                 bericht["ok"] = False
+
+        # Der eigentliche Punkt dieses Selbsttests: Gibt es die eingetragenen Monitore und die
+        # eingetragene Statusseite ÜBERHAUPT? Das ist der Fehler, der sonst unentdeckt bleibt,
+        # weil alles gelingt -- die Wartung wird angelegt, sie steht in der Liste, und sie
+        # unterdrückt keinen einzigen Alarm. Gemerkt hätte man es erst, wenn nachts beim
+        # Update trotzdem ein Alarm kommt.
+        try:
+            vorhanden = {m.get("name") for m in api.get_monitors()}
+            bericht["monitore_gefunden"] = [n for n in MONITOR_NAMEN if n in vorhanden]
+            fehlend = [n for n in MONITOR_NAMEN if n not in vorhanden]
+            if fehlend:
+                bericht["monitore_NICHT_gefunden"] = fehlend
+                bericht["ok"] = False
+            if not MONITOR_NAMEN:
+                bericht["monitore_gefunden"] = "KEINE eingetragen -- die Wartung würde keinen Alarm unterdrücken"
+                bericht["ok"] = False
+        except Exception as e:
+            bericht["monitore_gefunden"] = f"FEHLER: {e}"
+            bericht["ok"] = False
+
+        if STATUSSEITE:
+            try:
+                seiten = api.get_status_pages()
+                namen = {s.get("title") for s in seiten} | {s.get("slug") for s in seiten}
+                if STATUSSEITE in namen:
+                    bericht["statusseite_gefunden"] = STATUSSEITE
+                else:
+                    bericht["statusseite_NICHT_gefunden"] = (
+                        f"{STATUSSEITE!r} -- vorhanden: " + ", ".join(sorted(str(n) for n in namen if n))
+                    )
+                    bericht["ok"] = False
+            except Exception as e:
+                bericht["statusseite_gefunden"] = f"FEHLER: {e}"
+                bericht["ok"] = False
+        else:
+            bericht["statusseite_gefunden"] = "keine eingetragen -- die Wartung erscheint auf keiner Statusseite"
+
         return bericht
 
     return jsonify(mit_kuma(arbeit))
